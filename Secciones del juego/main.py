@@ -1,4 +1,4 @@
-#Version 0.3 
+#Version 0.4
 #Librerias ocupadas
 import pygame
 import sys
