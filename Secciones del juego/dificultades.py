@@ -1,145 +1,129 @@
-# ...existing code...
+#dificultades.py
 import pygame
 import os
 import sys
+import tutorial
 
+#ruta de las imagenes
+carpeta_imagenes = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'Imagenes'))
+
+#verificamos la ruta de las imagenes
+def cargar_imagen(ruta, alpha=True):
+    try:
+        img = pygame.image.load(ruta)
+        return img.convert_alpha() if alpha else img.convert()
+    except Exception as e:
+        print(f"No se pudo cargar {ruta}: {e}")
+        # retornar una superficie de reemplazo para evitar que el juego se caiga
+        surf = pygame.Surface((100, 100), pygame.SRCALPHA)
+        surf.fill((255, 0, 255, 128))  # color visible para detectar fallos
+        return surf
+
+
+
+
+#letras de bienvenida
+lines = [
+    "Bienvenido a 'No te atrape!'",
+    "Te recomiendo empezar donde el tutorial!!!",
+    "donde RICK esta esperandote bastante ansioso...",
+    "Para darte la seccion de tutorial",
+    "Para ir a un boton, solo mueve el mouse sobre la dificultad que quieras y debes darle click",
+    "Mucha suerte y diviertete en 'No te atrape'!"
+]
+
+
+#botones de dificultades
+
+#tamaño de los botones
 boton_ancho = 200
 boton_largo = 60
 
-# ajustamos el tamaño con una función que lee la carpeta, empareja normal/hover,
-# escala manteniendo aspecto y devuelve una lista de botones listos para usar
-def scale_image(carpeta, screen, ancho_max=boton_ancho, largo_max=boton_largo, start_y=None, spacing=12, orden=None):
-    # Lista sólo png que contienen 'boton' en el nombre
-    files = [f for f in os.listdir(carpeta) if f.lower().endswith('.png') and 'boton' in f.lower()]
-
-    # Emparejar normal/hover bajo una clave base (ej: 'tutorial')
-    pairs = {}
-    for f in files:
-        name = os.path.splitext(f)[0].lower()  # ejemplo: 'tutorial_boton' o 'tutorial_boton_hover'
-        is_hover = name.endswith('_hover')
-        base = name[:-6] if is_hover else name
-        if base.endswith('_boton'):
-            base = base[:-6]
-
-        pairs.setdefault(base, {})['hover' if is_hover else 'normal'] = os.path.join(carpeta, f)
-
-    # Orden de las claves
-    keys = orden if orden is not None else sorted(pairs.keys())
-
-    if start_y is None:
-        start_y = int(screen.get_height() * 0.65)
-
-    botones = []
-    for i, key in enumerate(keys):
-        p = pairs.get(key, {})
-        normal_path = p.get('normal')
-        hover_path = p.get('hover')
-
-        # Cargar imágenes con fallback
-        try:
-            if normal_path:
-                img = pygame.image.load(normal_path).convert_alpha()
-            else:
-                raise FileNotFoundError('normal image missing')
-        except Exception as e:
-            print(f"Error cargando {normal_path}: {e}")
-            img = pygame.Surface((ancho_max, largo_max), pygame.SRCALPHA)
-            img.fill((150, 150, 150))
-
-        try:
-            hover_img = pygame.image.load(hover_path).convert_alpha() if hover_path else None
-        except Exception:
-            hover_img = None
-
-        # Si falta hover, crear una versión oscurecida
-        if hover_img is None:
-            hover_img = img.copy()
-            overlay = pygame.Surface(hover_img.get_size(), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 60))
-            hover_img.blit(overlay, (0, 0))
-
-        # Escalar manteniendo aspecto (por defecto no agrandar)
-        orig_w, orig_h = img.get_width(), img.get_height()
-        scale = min(ancho_max / orig_w, largo_max / orig_h, 1.0)
-        new_w, new_h = int(orig_w * scale), int(orig_h * scale)
-        if (new_w, new_h) != (orig_w, orig_h):
-            img = pygame.transform.smoothscale(img, (new_w, new_h))
-            hover_img = pygame.transform.smoothscale(hover_img, (new_w, new_h))
-
-        # Posición vertical en lista, centrado horizontalmente
-        y = start_y + i * (new_h + spacing)
-        rect = img.get_rect(center=(screen.get_width() // 2, y))
-
-        botones.append({
-            'name': key,
-            'img': img,
-            'hover_img': hover_img,
-            'rect': rect,
-            'action': None,
-        })
-
-    return botones
 
 
 def start(screen):
-    reloj = pygame.time.Clock()
+    # 1. SETUP LOCAL (Antes del while)
     FPS = 60
-    running = True
-
-    tipo_texto = pygame.font.Font(None, int(screen.get_height() * 0.03))  # Tamaño de fuente relativo a la altura de la pantalla
-    # Divide el texto en líneas y cámbialas si quieres
-    lines = [
-        "Bienvenido a la sección de dificultades :D",
-        "Recomiendo que empieces el tutorial con RICK,",
-        "él está esperando para darte la tutoría."
-    ]
-    color = (255, 255, 255)
+    reloj = pygame.time.Clock()
+    correr = True
+    
+    #Tipo de letra
+    tipo_texto = pygame.font.SysFont('Arial', 30)
+    color_texto = (255, 255, 255)
     line_height = tipo_texto.get_linesize()
-    start_y = int(screen.get_height() * 0.10)  # 10% desde arriba
 
-    # Cargar automáticamente todos los botones desde la carpeta Imagenes
-    base_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Imagenes")
-    buttons = scale_image(base_path, screen, ancho_max=boton_ancho, largo_max=boton_largo,
-                          start_y=int(screen.get_height() * 0.65), spacing=12, orden=None)
+    # Obtener dimensiones dinámicas de la pantalla que main.py nos pasó
+    ancho_pantalla = screen.get_width()
+    alto_pantalla = screen.get_height()
 
-    # Asignar acciones (callbacks) por nombre; ajusta aquí según tus funciones reales
-    for b in buttons:
-        if b['name'] == 'tutorial':
-            b['action'] = lambda n=b['name']: print("Botón tutorial clickeado")
-        else:
-            b['action'] = lambda n=b['name']: print("clic en", n)
+    # Cálculo de la posición inicial de elementos y mouse
+    letra_ubicacion = alto_pantalla * 0.1
+    mouse_x, mouse_y = pygame.mouse.get_pos()
+    
+    # 2. CALCULAR POSICIÓN DE BOTONES (Antes del while)
+    # Usa las variables dinámicas ancho_pantalla y alto_pantalla
 
-    while running:
+    #boton tutorial
+    ruta_boton_tutorial = os.path.join(carpeta_imagenes, 'tutorial_boton.png')
+    boton_tutorial = cargar_imagen(ruta_boton_tutorial, alpha=True)
+    boton_tutorial_escalada = pygame.transform.scale(boton_tutorial, (boton_ancho, boton_largo))
+
+
+    #boton tutorial hover
+    ruta_boton_tutorial_hover = os.path.join(carpeta_imagenes, 'tutorial_boton_hover.png')
+    boton_tutorial_hover = cargar_imagen(ruta_boton_tutorial_hover, alpha=True)
+    boton_tutorial_hover_escalada = pygame.transform.scale(boton_tutorial_hover, (boton_ancho, boton_largo))
+    
+    # Botón tutorial centrado
+    rect_boton = boton_tutorial_escalada.get_rect()
+    rect_boton.center = (ancho_pantalla // 2, alto_pantalla // 2 + 100) 
+    
+    # Botón tutorial hover centrado
+    rect_boton_hover = boton_tutorial_hover_escalada.get_rect(center=rect_boton.center)
+
+    # 3. BUCLE DE EJECUCIÓN (Todo lo que sigue debe ir indentado)
+    while correr:
         reloj.tick(FPS)
+
+        # MANEJO DE EVENTOS (AHORA DENTRO DEL WHILE)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    running = False
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                for b in buttons:
-                    if b['rect'].collidepoint(event.pos):
-                        if b['action']:
-                            b['action']()
+                    correr = False # Sale del bucle start()
+            
+            if event.type == pygame.MOUSEMOTION:
+                mouse_x, mouse_y = event.pos
 
-        screen.fill((50, 50, 50))
+            if event.type == pygame.MOUSEBUTTONDOWN:
+            # comprobar que sea click izquierdo (1)
+                if event.button == 1 and rect_boton.collidepoint(event.pos):
+                # llamamos a la seccion de dificultades.
+                    pygame.mouse.set_visible(True)  # mostrar cursor en la nueva sección
+                    tutorial.start(screen)     # llama a la función de la otra parte
+                    correr = False  # salir del bucle actual
 
-        # Dibujar líneas centradas horizontalmente, empezando en start_y
+        # DIBUJO DE PANTALLA (AHORA DENTRO DEL WHILE)
+        screen.fill((50, 50, 50)) # limpiador de pantalla
+    
+        # Dibujar líneas centradas
         for i, text in enumerate(lines):
-            surf = tipo_texto.render(text, True, color)
-            rect = surf.get_rect(centerx=screen.get_width() // 2)
-            rect.top = start_y + i * line_height
+            surf = tipo_texto.render(text, True, color_texto)
+            # screen.get_width() está bien aquí
+            rect = surf.get_rect(centerx=screen.get_width() // 2) 
+            rect.top = letra_ubicacion + i * line_height
             screen.blit(surf, rect)
+            
+        # Dibujar el botón de tutorial
+        if rect_boton.collidepoint(mouse_x, mouse_y):
+            screen.blit(boton_tutorial_hover_escalada, rect_boton_hover)
+        else:
+            screen.blit(boton_tutorial_escalada, rect_boton)
 
-        # Dibujar los botones (normal / hover)
-        mouse_pos = pygame.mouse.get_pos()
-        for b in buttons:
-            is_hover = b['rect'].collidepoint(mouse_pos)
-            if is_hover:
-                screen.blit(b['hover_img'], b['rect'])
-            else:
-                screen.blit(b['img'], b['rect'])
-
+        # ACTUALIZAR (AHORA DENTRO DEL WHILE)
         pygame.display.flip()
+        
+    return # La función termina, el control vuelve a main.py

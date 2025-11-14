@@ -1,4 +1,5 @@
-#Version 0.4
+#Version 1
+#main.py
 #Librerias ocupadas
 import pygame
 import sys
@@ -23,6 +24,7 @@ carpeta_imagenes = encontrar_carpeta_imagenes(ruta_del_archivo)
 
 #Iniciamos pygame
 pygame.init()
+pygame.font.init()
 
 #ponemos el primer tamaño de pantalla del juego
 tamaño_ancho = 1280
@@ -114,6 +116,7 @@ while correr:
                 # llamamos a la seccion de dificultades.
                 pygame.mouse.set_visible(True)  # mostrar cursor en la nueva sección
                 dificultades.start(screen)     # llama a la función de la otra parte
+                correr = False  # salir del bucle actual
 
     # Si no hay movimiento reciente, actualizar con la posición actual del mouse
     # (útil al iniciar)

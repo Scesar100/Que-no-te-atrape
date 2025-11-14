@@ -1,0 +1,139 @@
+import pygame
+import sys
+import os
+#import tutorial_gameover # ¡Asegúrate de que este archivo exista!
+
+# --- Configuración de rutas (Necesaria para cargar imágenes si fuera necesario) ---
+carpeta_imagenes = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'Imagenes'))
+
+def cargar_imagen(ruta, alpha=True):
+    try:
+        img = pygame.image.load(ruta)
+        return img.convert_alpha() if alpha else img.convert()
+    except Exception as e:
+        # print(f"No se pudo cargar {ruta}: {e}") # Desactivado para no llenar la consola si no hay imágenes
+        surf = pygame.Surface((100, 100), pygame.SRCALPHA)
+        surf.fill((255, 0, 255, 128))
+        return surf
+
+# --- Función de la escena del tutorial ---
+def start(screen):
+    FPS = 60
+    reloj = pygame.time.Clock()
+    running = True
+
+    # --- 1. Inicialización de la Fuente ---
+    tipo_texto_rick = pygame.font.SysFont('Arial', 30)
+    color_texto_rick = (255, 255, 255) 
+    
+    # --- 2. Configuración de la Barra Lateral ---
+    tipo_texto_sidebar = pygame.font.SysFont('Arial', 24)
+    color_sidebar = (100, 255, 100)
+    sidebar_x = 20
+    sidebar_y_start = 50 
+    line_spacing = 30
+    
+    # --- 3. Inicialización de Métricas ---
+    tiempo_inicio_juego = pygame.time.get_ticks() 
+    velocidad_enemiga_base = 0.002
+    incremento_velocidad_por_seg = 0.0001 
+    
+    # --- 4. Cuadrado del Jugador (Anclado) ---
+    jugador_color = (0, 150, 255) 
+    jugador_tamaño = 50
+    jugador_rect = pygame.Rect(
+        (screen.get_width() // 2) - (jugador_tamaño // 2),
+        screen.get_height() - jugador_tamaño - 20, 
+        jugador_tamaño,
+        jugador_tamaño
+    )
+
+    # --- 5. Diálogo de Rick ---
+    dialogos_rick = [
+        "¡Hola! Soy Rick, y te enseñaré a jugar 'No te Atrape!'",
+        "Este es tu personaje. Por ahora, está anclado abajo.",
+        "En el juego real, te moverás para esquivar.",
+        f"Jugarás a {FPS} cuadros por segundo (FPS).",
+        "El tiempo es crucial, ¡no te quedes sin él!",
+        "Un cubo te perseguirá, ¡es más rápido de lo que crees!",
+        "Tu objetivo es sobrevivir, ¿entendido?",
+        "¡Nunca te voy a abandonar, nunca te voy a defraudar!", 
+        "Presiona ESC para volver al menú principal. ¡Mucha suerte!"
+    ]
+    
+    dialogo_actual_idx = 0
+    tiempo_inicio_dialogo = pygame.time.get_ticks() 
+    duracion_dialogo_seg = 4 
+
+    while running:
+        reloj.tick(FPS)
+        tiempo_actual = pygame.time.get_ticks() # Obtenemos el tiempo aquí una vez
+
+        # --- MANEJO DE EVENTOS ---
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE or event.key == pygame.K_SPACE:
+                    running = False 
+                    return "menu" 
+                # Opcional: pasar al siguiente diálogo con Enter
+                if event.key == pygame.K_RETURN and dialogo_actual_idx < len(dialogos_rick) - 1:
+                    dialogo_actual_idx += 1
+                    tiempo_inicio_dialogo = pygame.time.get_ticks()
+
+        # --- LÓGICA DE AVANCE DE DIÁLOGO (Antes de Dibujar) ---
+        if (tiempo_actual - tiempo_inicio_dialogo) // 1000 >= duracion_dialogo_seg:
+            if dialogo_actual_idx < len(dialogos_rick) - 1:
+                dialogo_actual_idx += 1
+                tiempo_inicio_dialogo = pygame.time.get_ticks()
+            else:
+                # 🛑 ¡FIN DEL TUTORIAL! Llama al Rickroll Game Over 🛑
+                running = False
+                #rickroll_gameover.start(screen)
+                return # El juego se cierra dentro de rickroll_gameover.start()
+        
+        # --- DIBUJO ---
+        screen.fill((20, 20, 20)) 
+
+        # --- LÓGICA Y DIBUJO DE MÉTRICAS (Barra Lateral) ---
+        tiempo_transcurrido_ms = tiempo_actual - tiempo_inicio_juego
+        
+        # 1. Tiempo transcurrido (Stopwatch: 00:00:00)
+        segundos = tiempo_transcurrido_ms // 1000
+        minutos = segundos // 60
+        horas = minutos // 60
+        segundos_restantes = segundos % 60
+        minutos_restantes = minutos % 60
+        
+        tiempo_str = f"{int(horas):02d}:{int(minutos_restantes):02d}:{int(segundos_restantes):02d}"
+        
+        # 2. Velocidad del Enemigo 
+        incremento_total = (segundos) * incremento_velocidad_por_seg
+        velocidad_actualizada = velocidad_enemiga_base + incremento_total
+        
+        # 3. Datos a mostrar
+        datos_sidebar = [
+            f"FPS: {FPS}",
+            f"Tiempo: {tiempo_str}",
+            f"Perseguidor VL: {velocidad_actualizada:.3f}"
+        ]
+        
+        # --- DIBUJO DE LA BARRA LATERAL ---
+        for i, dato in enumerate(datos_sidebar):
+            surf_dato = tipo_texto_sidebar.render(dato, True, color_sidebar)
+            screen.blit(surf_dato, (sidebar_x, sidebar_y_start + i * line_spacing))
+
+        # --- Dibujar Cuadrado del Jugador ---
+        pygame.draw.rect(screen, jugador_color, jugador_rect)
+
+        # --- Dibujar Diálogo de Rick ---
+        texto_rick = dialogos_rick[dialogo_actual_idx]
+        surf_texto_rick = tipo_texto_rick.render(texto_rick, True, color_texto_rick)
+        
+        rect_texto_rick = surf_texto_rick.get_rect(center=(screen.get_width() // 2, screen.get_height() // 4))
+        screen.blit(surf_texto_rick, rect_texto_rick)
+
+        # --- ACTUALIZAR PANTALLA ---
+        pygame.display.flip()
